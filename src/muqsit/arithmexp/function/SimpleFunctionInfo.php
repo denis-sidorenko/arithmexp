@@ -12,6 +12,7 @@ use muqsit\arithmexp\token\builder\ExpressionTokenBuilderState;
 use muqsit\arithmexp\token\Token;
 use ReflectionFunction;
 use ReflectionParameter;
+use RoundingMode;
 use function array_map;
 use function gettype;
 use function is_float;
@@ -29,6 +30,15 @@ final class SimpleFunctionInfo implements FunctionInfo{
 		return new self($callback, array_map(static function(ReflectionParameter $_parameter) : int|float|bool|null{
 			if($_parameter->isDefaultValueAvailable()){
 				$value = $_parameter->getDefaultValue();
+				if($value instanceof RoundingMode){
+					$value = match($value){
+						RoundingMode::HalfAwayFromZero => PHP_ROUND_HALF_UP,
+						RoundingMode::HalfTowardsZero => PHP_ROUND_HALF_DOWN,
+						RoundingMode::HalfEven => PHP_ROUND_HALF_EVEN,
+						RoundingMode::HalfOdd => PHP_ROUND_HALF_ODD,
+						default => throw new InvalidArgumentException("Cannot represent RoundingMode::{$value->name} as an int|float|bool default value for parameter \"{$_parameter->getName()}\"")
+					};
+				}
 				if(!is_int($value) && !is_float($value) && !is_bool($value)){
 					throw new InvalidArgumentException("Expected default parameter value to be int|float|bool, got " . gettype($value) . " for parameter \"{$_parameter->getName()}\"");
 				}
